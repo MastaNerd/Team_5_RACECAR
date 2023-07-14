@@ -71,15 +71,15 @@ def update_contour():
         image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
         #Find all of contours of desired color and get biggest contour
-        for i in COLORS:
-            currentCont = rc_utils.find_contours(x, i[0], i[1])
-            if len(currentCont) == 0:
-                continue
-            currentLargestCont = rc.utils.get_largest_contour(currentCont,contour)
-            if currentLargestCont > MIN_CONTOUR_AREA:
-                contour = currentLargestCont
-        if len(currentCont) == 0:
-                contour = None
+        contourArea = 0
+        for i in COLORS:         
+            currentCont = rc_utils.find_contours(image,i[0], i[1] )
+            contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
+            if rc_utils.get_contour_area(contour) > contourArea:
+    #            contour = currentLargestContour
+                contourArea = rc_utils.get_contour_area(contour)
+    #    if len(currentCont) == 0:
+    #            contour = None
             
 
 
@@ -93,7 +93,7 @@ def update_contour():
         if contour is not None:
             # Calculate contour information
             contour_center = rc_utils.get_contour_center(contour)
-            contour_area = rc_utils.get_contour_area(contour)
+            # contour_area = rc_utils.get_contour_area(contour)
 
             # Draw contour onto the image
             rc_utils.draw_contour(image, contour)
