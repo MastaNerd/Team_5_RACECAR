@@ -35,7 +35,7 @@ CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
 BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((0,230, 230),(15, 255, 255 ))
 GREEN = ((82,200,174), (90,255,214))
-COLORS = ((BLUE),(GREEN),(RED))
+COLORS = (BLUE, GREEN,RED)
   # The HSV range for the color blue
 # TODO (challenge 1): add HSV ranges for other colors
 
@@ -75,9 +75,9 @@ def update_contour():
         for i in COLORS:         
             currentCont = rc_utils.find_contours(image,i[0], i[1] )
             contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
-            if rc_utils.get_contour_area(contour) > contourArea:
-    #            contour = currentLargestContour
-                contourArea = rc_utils.get_contour_area(contour)
+#             if rc_utils.get_contour_area(contour) > contourArea:s
+#     #            contour = currentLargestContour
+#                 contourArea = rc_utils.get_contour_area(contour)
     #    if len(currentCont) == 0:
     #            contour = None
             
@@ -138,38 +138,41 @@ def start():
 
 
 def update():
-    """
-    After start() is run, this function is run every frame until the back button
-    is pressed
-    """
+    # rc.set_speed_angle(.57, 0)
+    
+#     print("hello")
+#     """
+#     After start() is run, this function is run every frame until the back button
+#     is pressed
+#     """
     global speed
     global angle
 
-    # Search for contours in the current color image
+#     # Search for contours in the current color image
     update_contour()
 
-    # Choose an angle based on contour_center
-    # If we could not find a contour, keep the previous angle
+#     # Choose an angle based on contour_center
+#     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        # Current implementation: bang-bang control (very choppy)
-        # TODO (warmup): Implement a smoother way to follow the line
+#         # Current implementation: bang-bang control (very choppy)
+#         # TODO (warmup): Implement a smoother way to follow the line
         if contour_center[1] < rc.camera.get_width() / 2:
             angle = -1
         else:
             angle = 1
 
-    # Use the triggers to control the car's speed
+#     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
     speed = forwardSpeed - backSpeed
 
     rc.drive.set_speed_angle(speed, angle)
 
-    # Print the current speed and angle when the A button is held down
+#     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
 
-    # Print the center and area of the largest contour when B is held down
+#     # Print the center and area of the largest contour when B is held down
     if rc.controller.is_down(rc.controller.Button.B):
         if contour_center is None:
             print("No contour found")
@@ -184,14 +187,14 @@ def update_slow():
     """
     # Print a line of ascii text denoting the contour area and x-position
     if rc.camera.get_color_image() is None:
-        # If no image is found, print all X's and don't display an image
+#         # If no image is found, print all X's and don't display an image
         print("X" * 10 + " (No image) " + "X" * 10)
     else:
-        # If an image is found but no contour is found, print all dashes
+#         # If an image is found but no contour is found, print all dashes
         if contour_center is None:
             print("-" * 32 + " : area = " + str(contour_area))
 
-        # Otherwise, print a line of dashes with a | indicating the contour x-position
+#         # Otherwise, print a line of dashes with a | indicating the contour x-position
         else:
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
