@@ -29,13 +29,13 @@ rc = racecar_core.create_racecar()
 MIN_CONTOUR_AREA = 30
 
 # A crop window for the floor directly in front of the car
-CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
+CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((0,230, 230),(15, 255, 255 ))
-GREEN = ((82,200,174), (90,255,214))
-COLORS = (BLUE, GREEN,RED)
+GREEN = ((50,200,174), (90,255,214))
+COLORS = (RED, BLUE, GREEN)
   # The HSV range for the color blue
 # TODO (challenge 1): add HSV ranges for other colors
 
@@ -71,40 +71,31 @@ def update_contour():
         image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
         #Find all of contours of desired color and get biggest contour
-        contourArea = 0
         for i in COLORS:         
             currentCont = rc_utils.find_contours(image,i[0], i[1] )
+
+            # if largestCurrColorCont is None:
+            #     continue
             contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
-#             if rc_utils.get_contour_area(contour) > contourArea:s
-#     #            contour = currentLargestContour
-#                 contourArea = rc_utils.get_contour_area(contour)
-    #    if len(currentCont) == 0:
-    #            contour = None
-            
+
+            if contour is not None:
+                # Calculate contour information
+                contour_center = rc_utils.get_contour_center(contour)
+                contour_area = rc_utils.get_contour_area(contour)
+
+                # Draw contour onto the image
+                rc_utils.draw_contour(image, contour)
+                rc_utils.draw_circle(image, contour_center)
 
 
-        # Find all of the blue contours
-        # contours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-        #
-        #
-        # Select the largest contour
-        #contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+                break
 
-        if contour is not None:
-            # Calculate contour information
-            contour_center = rc_utils.get_contour_center(contour)
-            # contour_area = rc_utils.get_contour_area(contour)
+            else:
+                contour_center = None
+                contour_area = 0
 
-            # Draw contour onto the image
-            rc_utils.draw_contour(image, contour)
-            rc_utils.draw_circle(image, contour_center)
-
-        else:
-            contour_center = None
-            contour_area = 0
-
-        # Display the image to the screen
-        rc.display.show_color_image(image)
+            # Display the image to the screen
+            rc.display.show_color_image(image)
 
 
 
@@ -115,6 +106,7 @@ def start():
     global speed
     global angle
 
+    print
     # Initialize variables
     speed = 0
     angle = 0
@@ -147,7 +139,6 @@ def update():
 #     """
     global speed
     global angle
-
 #     # Search for contours in the current color image
     update_contour()
 
@@ -157,9 +148,9 @@ def update():
 #         # Current implementation: bang-bang control (very choppy)
 #         # TODO (warmup): Implement a smoother way to follow the line
         if contour_center[1] < rc.camera.get_width() / 2:
-            angle = -1
+            angle = -.5
         else:
-            angle = 1
+            angle = .5
 
 #     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
