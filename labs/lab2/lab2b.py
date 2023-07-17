@@ -3,7 +3,7 @@ Copyright MIT and Harvey Mudd College
 MIT License
 Summer 2020
 
-Lab 2A - Color Image Line Following
+Lab 2B - Color Image Cone Parking
 """
 
 ########################################################################################
@@ -13,10 +13,12 @@ Lab 2A - Color Image Line Following
 import sys
 import cv2 as cv
 import numpy as np
+from enum import IntEnum
 
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
+from enum import IntEnum
 
 ########################################################################################
 # Global variables
@@ -28,16 +30,8 @@ rc = racecar_core.create_racecar()
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 30
 
-# A crop window for the floor directly in front of the car
-CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
-
-# Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((0,230, 230),(15, 255, 255 ))
-GREEN = ((82,200,174), (90,255,214))
-COLORS = (BLUE, GREEN,RED)
-  # The HSV range for the color blue
-# TODO (challenge 1): add HSV ranges for other colors
+# The HSV range for the color orange, stored as (hsv_min, hsv_max)
+ORANGE = ((10, 100, 100), (20, 255, 255))
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -45,6 +39,13 @@ angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 
+########################################################################################
+# States
+########################################################################################
+class State(IntEnum):
+    search = 0
+    stop = 0
+cur_state: State = State.search
 ########################################################################################
 # Functions
 ########################################################################################
@@ -57,6 +58,13 @@ def update_contour():
     """
     global contour_center
     global contour_area
+    global cur_state
+
+    if cur_state == State.search:
+        rc.drive.set_speed_angle(0.3,0)
+    elif cur_state == State.stop:
+        rc.drive.stop()
+
 
     image = rc.camera.get_color_image()
 
@@ -64,36 +72,17 @@ def update_contour():
         contour_center = None
         contour_area = 0
     else:
-        # TODO (challenge 1): Search for multiple tape colors with a priority order
-        # (currently we only search for blue)
+        # Find all of the orange contours
+        contours = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
 
-        # Crop the image to the floor directly in front of the car
-        image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
-
-        #Find all of contours of desired color and get biggest contour
-        contourArea = 0
-        for i in COLORS:         
-            currentCont = rc_utils.find_contours(image,i[0], i[1] )
-            contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
-#             if rc_utils.get_contour_area(contour) > contourArea:s
-#     #            contour = currentLargestContour
-#                 contourArea = rc_utils.get_contour_area(contour)
-    #    if len(currentCont) == 0:
-    #            contour = None
-            
-
-
-        # Find all of the blue contours
-        # contours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-        #
-        #
         # Select the largest contour
-        #contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
         if contour is not None:
             # Calculate contour information
             contour_center = rc_utils.get_contour_center(contour)
-            # contour_area = rc_utils.get_contour_area(contour)
+            contour_area = rc_utils.get_contour_area(contour)
+            cur_state = State.stop
 
             # Draw contour onto the image
             rc_utils.draw_contour(image, contour)
@@ -102,11 +91,10 @@ def update_contour():
         else:
             contour_center = None
             contour_area = 0
+            cur_state = State.search
 
         # Display the image to the screen
         rc.display.show_color_image(image)
-
-
 
 def start():
     """
@@ -114,11 +102,14 @@ def start():
     """
     global speed
     global angle
+    global cur_state
 
     # Initialize variables
     speed = 0
     angle = 0
 
+    cur_state = State.search
+    
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
 
@@ -126,53 +117,27 @@ def start():
     rc.set_update_slow_time(0.5)
 
     # Print start message
-    print(
-        ">> Lab 2A - Color Image Line Following\n"
-        "\n"
-        "Controls:\n"
-        "    Right trigger = accelerate forward\n"
-        "    Left trigger = accelerate backward\n"
-        "    A button = print current speed and angle\n"
-        "    B button = print contour center and area"
-    )
+    print(">> Lab 2B - Color Image Cone Parking")
 
 
 def update():
-    # rc.set_speed_angle(.57, 0)
-    
-#     print("hello")
-#     """
-#     After start() is run, this function is run every frame until the back button
-#     is pressed
-#     """
+    """
+    After start() is run, this function is run every frame until the back button
+    is pressed
+    """
     global speed
     global angle
 
-#     # Search for contours in the current color image
+    # Search for contours in the current color image
     update_contour()
 
-#     # Choose an angle based on contour_center
-#     # If we could not find a contour, keep the previous angle
-    if contour_center is not None:
-#         # Current implementation: bang-bang control (very choppy)
-#         # TODO (warmup): Implement a smoother way to follow the line
-        if contour_center[1] < rc.camera.get_width() / 2:
-            angle = -1
-        else:
-            angle = 1
+    # TODO: Park the car 30 cm away from the closest orange cone
 
-#     # Use the triggers to control the car's speed
-    forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
-    backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = forwardSpeed - backSpeed
-
-    rc.drive.set_speed_angle(speed, angle)
-
-#     # Print the current speed and angle when the A button is held down
+    # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
 
-#     # Print the center and area of the largest contour when B is held down
+    # Print the center and area of the largest contour when B is held down
     if rc.controller.is_down(rc.controller.Button.B):
         if contour_center is None:
             print("No contour found")
@@ -185,16 +150,16 @@ def update_slow():
     After start() is run, this function is run at a constant rate that is slower
     than update().  By default, update_slow() is run once per second
     """
-    # Print a line of ascii text denoting the contour area and x-position
+    # Print a line of ascii text denoting the contour area and x position
     if rc.camera.get_color_image() is None:
-#         # If no image is found, print all X's and don't display an image
+        # If no image is found, print all X's and don't display an image
         print("X" * 10 + " (No image) " + "X" * 10)
     else:
-#         # If an image is found but no contour is found, print all dashes
+        # If an image is found but no contour is found, print all dashes
         if contour_center is None:
             print("-" * 32 + " : area = " + str(contour_area))
 
-#         # Otherwise, print a line of dashes with a | indicating the contour x-position
+        # Otherwise, print a line of dashes with a | indicating the contour x-position
         else:
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
