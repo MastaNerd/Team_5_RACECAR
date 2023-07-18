@@ -35,7 +35,7 @@ CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((0,230, 230),(15, 255, 255 ))
 GREEN = ((50,200,174), (90,255,214))
-COLORS = (RED, BLUE, GREEN)
+COLORS = (GREEN, RED, BLUE)
   # The HSV range for the color blue
 # TODO (challenge 1): add HSV ranges for other colors
 
@@ -145,12 +145,23 @@ def update():
 #     # Choose an angle based on contour_center
 #     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-#         # Current implementation: bang-bang control (very choppy)
-#         # TODO (warmup): Implement a smoother way to follow the line
-        if contour_center[1] < rc.camera.get_width() / 2:
-            angle = -.5
-        else:
-            angle = .5
+        kp =.7
+        setpoint = rc.camera.get_width()/2
+        error = contour_center[1] - setpoint
+        output = kp*error
+
+        angle = rc_utils.remap_range(output, kp*-setpoint, kp*setpoint, -1, 1)
+        print("p: ", contour_center)
+        
+    
+
+
+        # Current implementation: bang-bang control (very choppy)
+        # TODO (warmup): Implement a smoother way to follow the line
+        # if contour_center[1] < rc.camera.get_width() / 2:
+        #     angle = -.5
+        # else:
+        #     angle = .5
 
 #     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
