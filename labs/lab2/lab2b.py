@@ -38,14 +38,16 @@ speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
-
+global queue
+queue=[]
 ########################################################################################
 # States
 ########################################################################################
 class State(IntEnum):
-    search = 0
-    stop = 0
-cur_state: State = State.search
+    Search = 0
+    Approach = 1
+    Park = 2
+cur_state: State = State.Search
 ########################################################################################
 # Functions
 ########################################################################################
@@ -60,11 +62,7 @@ def update_contour():
     global contour_area
     global cur_state
 
-    if cur_state == State.search:
-        rc.drive.set_speed_angle(0.3,0)
-    elif cur_state == State.stop:
-        rc.drive.stop()
-
+    
 
     image = rc.camera.get_color_image()
 
@@ -82,7 +80,6 @@ def update_contour():
             # Calculate contour information
             contour_center = rc_utils.get_contour_center(contour)
             contour_area = rc_utils.get_contour_area(contour)
-            cur_state = State.stop
 
             # Draw contour onto the image
             rc_utils.draw_contour(image, contour)
@@ -91,8 +88,6 @@ def update_contour():
         else:
             contour_center = None
             contour_area = 0
-            cur_state = State.search
-
         # Display the image to the screen
         rc.display.show_color_image(image)
 
@@ -108,16 +103,34 @@ def start():
     speed = 0
     angle = 0
 
-    cur_state = State.search
+    cur_state = State.Search
     
     # Set initial driving speed and angle
-    rc.drive.set_speed_angle(speed, angle)
+    #rc.drive.set_speed_angle(speed, angle)
 
     # Set update_slow to refresh every half second
     rc.set_update_slow_time(0.5)
 
     # Print start message
     print(">> Lab 2B - Color Image Cone Parking")
+
+def Approach(center):
+    global queue
+
+    TURN_TIME = 1
+    APPROACH_TIME = 1
+    BRAKE_TIME = 0.5
+
+    TURN_ANGLE = (center[1] - 320)/320
+
+    queue.clear()
+
+    queue.append([TURN_TIME,0.3 , TURN_ANGLE])
+    queue.append([APPROACH_TIME, 0.3, 0])
+    
+    
+    
+    
 
 
 def update():
@@ -127,12 +140,40 @@ def update():
     """
     global speed
     global angle
+    global cur_state
+    global queue
+
+    print(cur_state)
+
+
+    if cur_state == State.Search:
+        rc.drive.set_speed_angle(0.3,1)
+    elif cur_state == State.Approach:
+        
+        Approach(contour_center)
+
+        if len(queue) > 0:
+            speed = queue[0][1]
+            angle = queue[0][2]
+            queue[0][0] -= rc.get_delta_time()
+            rc.drive.set_speed_angle(speed, angle)
+            if queue[0][0] <= 0:
+                queue.pop(0)
+                
+    elif cur_state == State.Park:
+        rc.drive.stop()
+    
 
     # Search for contours in the current color image
     update_contour()
 
     # TODO: Park the car 30 cm away from the closest orange cone
-
+    if contour_area <= 27000 and contour_area > 0:
+        cur_state = State.Approach
+    elif contour_area > 27000:
+        cur_state = State.Park
+    else:
+        cur_state = State.Search
     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
