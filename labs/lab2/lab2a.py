@@ -33,9 +33,10 @@ CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((0,230, 230),(15, 255, 255 ))
-GREEN = ((50,200,174), (90,255,214))
-COLORS = (GREEN, RED, BLUE)
+RED = ((160,180, 150),(0, 255, 255 ))
+GREEN = ((40,40,120), (80,255,255))
+YELLOW = ((20,80,90),(40,255,255))
+COLORS = (GREEN, RED, BLUE, YELLOW)
   # The HSV range for the color blue
 # TODO (challenge 1): add HSV ranges for other colors
 
@@ -67,7 +68,7 @@ def update_contour():
         # TODO (challenge 1): Search for multiple tape colors with a priority order
         # (currently we only search for blue)
 
-        # Crop the image to the floor directly in front of the car
+        # Crop the image to the floor directly in front of the car/
         image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
         #Find all of contours of desired color and get biggest contour
@@ -105,11 +106,13 @@ def start():
     """
     global speed
     global angle
+    global angle_time
 
     print
     # Initialize variables
     speed = 0
     angle = 0
+    angle_time = 0
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
@@ -139,22 +142,23 @@ def update():
 #     """
     global speed
     global angle
+    global angle_time
 #     # Search for contours in the current color image
     update_contour()
 
-#     # Choose an angle based on contour_center
+#     # Choose an angle based on 
 #     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        kp =.7
-        setpoint = rc.camera.get_width()/2
+        kp =.2
+        kd = 1
+        setpoint = rc.camera.get_width()/2 + 18
         error = contour_center[1] - setpoint
         output = kp*error
 
-        angle = rc_utils.remap_range(output, kp*-setpoint, kp*setpoint, -1, 1)
-        print("p: ", contour_center)
-        
-    
+        angle = rc_utils.remap_range(output, kp*-setpoint, kp*setpoint, -.4, .4)
 
+        print("error: ", error)
+        
 
         # Current implementation: bang-bang control (very choppy)
         # TODO (warmup): Implement a smoother way to follow the line
@@ -162,13 +166,11 @@ def update():
         #     angle = -.5
         # else:
         #     angle = .5
-
-#     # Use the triggers to control the car's speed
-    forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
-    backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = forwardSpeed - backSpeed
+            
+    speed = .15
 
     rc.drive.set_speed_angle(speed, angle)
+    
 
 #     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
