@@ -33,10 +33,12 @@ CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((160,180, 150),(0, 255, 255 ))
-GREEN = ((40,40,120), (80,255,255))
-YELLOW = ((20,80,90),(40,255,255))
-COLORS = (GREEN, RED, BLUE, YELLOW)
+RED = ((0,116,214),(0,159,113))
+GREEN = ((50,200,174), (90,255,214))
+ORANGE = ((15,128,255),(15,255,128))
+YELLOW = ((30,102,255),(30,255,153))
+PURPLE = ((143,40,250),(142,172,97))
+COLORS = (GREEN, RED, BLUE, YELLOW, PURPLE, ORANGE)
   # The HSV range for the color blue
 # TODO (challenge 1): add HSV ranges for other colors
 
