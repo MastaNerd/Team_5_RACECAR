@@ -34,8 +34,11 @@ queue=[]
 CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 
 coneColor = None
-BLUE = ((90, 80, 80), (113, 255, 255))
-RED = ((175, 160, 130), (179, 255, 255))
+
+GREEN = ((50,200,174), (90,255,214))
+RED =((175, 160, 130), (179, 255, 255))#actually orange
+YELLOW = ((30,102,255),(30,255,153))
+BLUE = ((90, 80, 80), (113, 255, 255))#actually purple
 
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
