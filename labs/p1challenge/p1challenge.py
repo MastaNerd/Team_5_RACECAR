@@ -33,14 +33,16 @@ queue=[]
 
 coneColor = None
 
-ORANGE =((3, 140, 225), (11, 255, 250))
-PURPLE = ((100, 60, 120), (170, 200, 255))
+ORANGE =((175, 160, 130), (179, 255, 250))
+PURPLE = ((90, 80, 80), (113, 255, 255))
 
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 
 CROP_FLOOR = ((100,0), (rc.camera.get_height(), rc.camera.get_width()))
 
+speed = 0
+angle = 0
 
 # Add any global variables here
 ########################################################################################
@@ -143,43 +145,26 @@ def update_contour():
         # Display the image to the screen
         rc.display.show_color_image(image)
 
-def purpleCurve(contour_center, contour_area):
+def purpleCurve():
+    global queue
+    if len(queue) < 1:
+        queue.append([2.8,0.2,-0.3])
+        queue.append([2.8,0.2,0.6])
 
-    if contour_area is None:
-        rc.drive.set_speed_angle(0.2, 0.2)
-    else:
-        TURN_ANGLE = ((contour_center[1] - 400)/320)
-        if TURN_ANGLE > 1:
-            TURN_ANGLE = 1
-        elif TURN_ANGLE < -1:
-            TURN_ANGLE = -1
-        elif TURN_ANGLE < 0.08 and TURN_ANGLE > -0.08:
-            TURN_ANGLE = 0
-        rc.drive.set_speed_angle(0.2, TURN_ANGLE)
-
-def orangeCurve(contour_center, contour_area): 
-
-  
-    if contour_area is None:
-        rc.drive.set_speed_angle(0.2, -0.2)
-    else:
-        TURN_ANGLE = ((contour_center[1] - 50)/320)
-        if TURN_ANGLE > 1:
-            TURN_ANGLE = 1
-        elif TURN_ANGLE < -1:
-            TURN_ANGLE = -1
-        elif TURN_ANGLE < 0.08 and TURN_ANGLE > -0.08:
-            TURN_ANGLE = 0
-        rc.drive.set_speed_angle(0.2, TURN_ANGLE)
+def orangeCurve(): 
+    global queue
+    if len(queue) < 1:
+        queue.append([2.8,0.2,0.3])
+        queue.append([2.8,0.2,-0.6])
+    
 
 def update():
     
     global cur_state
     global queue
     global coneColor
-    global contour_center
-    global contour_area
-    global queue
+    global speed
+    global angle
 
     update_contour()
     update_slow()
@@ -191,9 +176,17 @@ def update():
         cur_state = State.purpleCurve
     
     if cur_state == State.orangeCurve:
-        orangeCurve(contour_center, contour_area)
+        orangeCurve()
     elif cur_state == State.purpleCurve:
-        purpleCurve(contour_center, contour_area)
+        purpleCurve()
+
+    if len(queue) > 0:
+        speed = queue[0][1]
+        angle = queue[0][2]
+        queue[0][0] -= rc.get_delta_time()
+        rc.drive.set_speed_angle(speed, angle)
+        if queue[0][0] <= 0:
+            queue.pop(0)
     
     
 def update_slow():
