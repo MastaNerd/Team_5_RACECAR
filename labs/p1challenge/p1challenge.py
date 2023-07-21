@@ -31,17 +31,16 @@ MIN_CONTOUR_AREA = 30
 global queue
 queue=[]
 
-CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
-
 coneColor = None
 
-GREEN = ((50,200,174), (90,255,214))
-RED =((175, 160, 130), (179, 255, 255))#actually orange
-YELLOW = ((30,102,255),(30,255,153))
-BLUE = ((90, 80, 80), (113, 255, 255))#actually purple
+ORANGE =((3, 140, 225), (11, 255, 250))
+PURPLE = ((100, 60, 120), (170, 200, 255))
 
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
+
+CROP_FLOOR = ((100,0), (rc.camera.get_height(), rc.camera.get_width()))
+
 
 # Add any global variables here
 ########################################################################################
@@ -49,8 +48,8 @@ contour_area = 0  # The area of contour
 ########################################################################################
 class State(IntEnum):
     Search = 0
-    redCurve = 1
-    blueCurve = 2
+    orangeCurve = 1
+    purpleCurve = 2
 cur_state: State = State.Search
 ########################################################################################
 # Functions
@@ -104,30 +103,30 @@ def update_contour():
 
         image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
-        # Find all of the red and blue contours
-        redContours = rc_utils.find_contours(image, RED[0], RED[1])      
-        blueContours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+        # Find all of the orange and purple contours
+        orangeContours = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])      
+        purpleContours = rc_utils.find_contours(image, PURPLE[0], PURPLE[1])
 
-        # Select the largest red and blue contour
-        redContour = rc_utils.get_largest_contour(redContours, MIN_CONTOUR_AREA)
-        blueContour = rc_utils.get_largest_contour(blueContours, MIN_CONTOUR_AREA)
+        # Select the largest orange and purple contour
+        orangeContour = rc_utils.get_largest_contour(orangeContours, MIN_CONTOUR_AREA)
+        purpleContour = rc_utils.get_largest_contour(purpleContours, MIN_CONTOUR_AREA)
 
-
-        if redContour is None and blueContour is None:
+        if orangeContour is None and purpleContour is None:
             contour = None
-        elif redContour is None:
-            contour = blueContour
-            coneColor = "blue"
-        elif blueContour is None:
-            contour = redContour
-            coneColor = "red"
+            coneColor = "None"
+        elif orangeContour is None:
+            contour = purpleContour
+            coneColor = "purple"
+        elif purpleContour is None:
+            contour = orangeContour
+            coneColor = "orange"
         else:
-            if rc_utils.get_contour_area(redContour) > rc_utils.get_contour_area(blueContour):
-                contour = redContour
-                coneColor = "red"
+            if rc_utils.get_contour_area(orangeContour) > rc_utils.get_contour_area(purpleContour):
+                contour = orangeContour
+                coneColor = "orange"
             else:
-                contour = blueContour
-                coneColor = "blue"
+                contour = purpleContour
+                coneColor = "purple"
 
         if contour is not None:
             # Calculate contour information
@@ -144,25 +143,24 @@ def update_contour():
         # Display the image to the screen
         rc.display.show_color_image(image)
 
-def blueCurve(contour_center, contour_area):
+def purpleCurve(contour_center, contour_area):
 
-    if contour_area < 2500:
-        rc.drive.set_speed_angle(0.2, -0.2)
-    elif contour_center is None:
+    if contour_area is None:
         rc.drive.set_speed_angle(0.2, 0.2)
     else:
-        TURN_ANGLE = ((contour_center[1] - 590)/320)
+        TURN_ANGLE = ((contour_center[1] - 400)/320)
         if TURN_ANGLE > 1:
             TURN_ANGLE = 1
         elif TURN_ANGLE < -1:
             TURN_ANGLE = -1
+        elif TURN_ANGLE < 0.08 and TURN_ANGLE > -0.08:
+            TURN_ANGLE = 0
         rc.drive.set_speed_angle(0.2, TURN_ANGLE)
 
-def redCurve(contour_center, contour_area): 
+def orangeCurve(contour_center, contour_area): 
 
-    if contour_area < 2500:
-        rc.drive.set_speed_angle(0.2, 0.2)
-    elif contour_center is None:
+  
+    if contour_area is None:
         rc.drive.set_speed_angle(0.2, -0.2)
     else:
         TURN_ANGLE = ((contour_center[1] - 50)/320)
@@ -170,6 +168,8 @@ def redCurve(contour_center, contour_area):
             TURN_ANGLE = 1
         elif TURN_ANGLE < -1:
             TURN_ANGLE = -1
+        elif TURN_ANGLE < 0.08 and TURN_ANGLE > -0.08:
+            TURN_ANGLE = 0
         rc.drive.set_speed_angle(0.2, TURN_ANGLE)
 
 def update():
@@ -183,18 +183,17 @@ def update():
 
     update_contour()
     update_slow()
+    print(cur_state)
 
-    if coneColor == "red":
-        cur_state = State.redCurve
-    elif coneColor == "blue":
-        cur_state = State.blueCurve
+    if coneColor == "orange":
+        cur_state = State.orangeCurve
+    elif coneColor == "purple":
+        cur_state = State.purpleCurve
     
-    if cur_state == State.redCurve:
-        print("red")
-        redCurve(contour_center, contour_area)
-    elif cur_state == State.blueCurve:
-        print("blue")
-        blueCurve(contour_center, contour_area)
+    if cur_state == State.orangeCurve:
+        orangeCurve(contour_center, contour_area)
+    elif cur_state == State.purpleCurve:
+        purpleCurve(contour_center, contour_area)
     
     
 def update_slow():
