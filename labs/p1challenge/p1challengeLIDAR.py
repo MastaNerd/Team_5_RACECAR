@@ -3,7 +3,7 @@ Copyright MIT and Harvey Mudd College
 MIT License
 Summer 2020
 
-Lab 3C - Depth Camera Wall Parking
+Phase 1 Challenge - Cone Slaloming
 """
 
 ########################################################################################
@@ -11,7 +11,6 @@ Lab 3C - Depth Camera Wall Parking
 ########################################################################################
 
 # Import Python libraries
-import math
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,6 +24,7 @@ import sys
 sys.path.append("../../library")
 import racecar_core
 import racecar_utils as rc_utils
+from enum import IntEnum
 
 ########################################################################################
 # Global variables
@@ -32,18 +32,29 @@ import racecar_utils as rc_utils
 
 rc = racecar_core.create_racecar()
 
-# Add any global variables here
-
-MIN_CONTOUR_AREA = 30
-
-global queue
-queue=[]
+MIN_CONTOUR_AREA = 50
 
 coneColor = None
 
 RED =((175, 160, 130), (179, 255, 250))
 BLUE = ((90, 80, 80), (113, 255, 255))
 
+
+clsPoint = None
+
+CROP_FLOOR = ((100,0), (rc.camera.get_height(), rc.camera.get_width()))
+
+
+
+# Add any global variables here
+########################################################################################
+# States
+########################################################################################
+class State(IntEnum):
+    Search = 0
+    redCurve = 1
+    blueCurve = 2
+cur_state: State = State.Search
 ########################################################################################
 # Functions
 ########################################################################################
@@ -53,56 +64,141 @@ def start():
     """
     This function is run once every time the start button is pressed
     """
+    global cur_state
+    # Initialize variables
+
+    cur_state = State.Search
+
+    # Set initial driving speed and angle
+    #rc.drive.set_speed_angle(speed, angle)
+
+    # Set update_slow to refresh every half second
+    rc.set_update_slow_time(0.5)
     # Have the car begin at a stop
-    rc.drive.stop()
-
+    
     # Print start message
-    print(">> Lab 3C - Depth Camera Wall Parking")
+    print(">> Phase 1 Challenge: Cone Slaloming")
 
+def update_color():
+    """
+    Finds contours in the current color image and uses them to update contour_center
+    and contour_area
+    """
+    global cur_state
+    global coneColor
     
 
+    image = rc.camera.get_color_image()
+
+    if image is None:
+        contour_center = None
+        contour_area = 0
+    else:
+
+        image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
+
+        # Find all of the red and blue contours
+        redContours = rc_utils.find_contours(image, RED[0], RED[1])      
+        blueContours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+
+        # Select the largest red and blue contour
+        redContour = rc_utils.get_largest_contour(redContours, MIN_CONTOUR_AREA)
+        blueContour = rc_utils.get_largest_contour(blueContours, MIN_CONTOUR_AREA)
+
+        if redContour is None and blueContour is None:
+            contour = None
+            coneColor = "None"
+        elif redContour is None:
+            contour = blueContour
+            coneColor = "blue"
+        elif blueContour is None:
+            contour = redContour
+            coneColor = "red"
+        else:
+            if rc_utils.get_contour_area(redContour) > rc_utils.get_contour_area(blueContour):
+                contour = redContour
+                coneColor = "red"
+            else:
+                contour = blueContour
+                coneColor = "blue"
+
+
+def blueCurve():
+    global clsPoint
+    #setting speed
+    speed = 0.2
+    #getting turn angle in degrees
+    angleInDegrees = (clsPoint[0] - 40)%360
+    print(angleInDegrees)
+
+    #seeing what value the turn angle corresponds to
+    if angleInDegrees > 270:
+        angle = (angleInDegrees - 360)/90
+    elif angleInDegrees < 90:
+        angle = (angleInDegrees)/90
+    elif angleInDegrees >= 90 and angleInDegrees < 180:
+        angle = (180 - angleInDegrees)/90
+    elif angleInDegrees >= 180 and angleInDegrees < 270:
+        angle = -(angleInDegrees - 180)/90
+    print(angle)
+    rc.drive.set_speed_angle(speed,angle)
+
+def redCurve(): 
+    global clsPoint
+
+    #setting speed
+    speed = 0.2
+
+    #getting turn angle in degrees
+    angleInDegrees = (clsPoint[0] + 40)%360
+    print(angleInDegrees)
+
+    #seeing what value the turn angle corresponds to
+    if angleInDegrees > 270:
+        angle = (angleInDegrees - 360)/90
+    elif angleInDegrees < 90:
+        angle = (angleInDegrees)/90
+    elif angleInDegrees >= 90 and angleInDegrees < 180:
+        angle = (180 - angleInDegrees)/90
+    elif angleInDegrees >= 180 and angleInDegrees < 270:
+        angle = -(angleInDegrees - 180)/90
+
+    #exeucteing drive
+    print(angle)
+    rc.drive.set_speed_angle(speed,angle)
+
 def update():
-    #global variables
+    
+    global cur_state
+    global queue
     global coneColor
+    global clsPoint
+
     #Getting the scan
-    scan = rc.lidar.get_samples()
+    scan = rc.lidar.get_samples_async()
 
     #Displaying the scan
-    rc.lidar.show_lidar(scan)
+    rc.display.show_lidar(scan)
 
-    clsPoint = rc.lidar.get_lidar_closest_point(scan, (0, 360))
+    #Getting the closest Cone
+    clsPoint = rc_utils.get_lidar_closest_point(scan, (0, 360))
 
-    if clsPoint[0] < 100 and clsPoint > 150:
-        image = rc.camera.get_color_image()
+    #Sees if that cone is in front of it, and only updates color if it is
+    if clsPoint[0] > 340 or clsPoint[0] < 20:
+        update_color()
 
-        if image is None:
-            coneColor = "None"
-        else:
-
-            # Find all of the orange and purple contours
-            orangeContours = rc_utils.find_contours(image, RED[0], RED[1])      
-            purpleContours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-
-            # Select the largest orange and purple contour
-            orangeContour = rc_utils.get_largest_contour(orangeContours, MIN_CONTOUR_AREA)
-            purpleContour = rc_utils.get_largest_contour(purpleContours, MIN_CONTOUR_AREA)
-        # check which cone is closer
-        if orangeContour is None and purpleContour is None:
-            coneColor = "None"
-        elif orangeContour is None:
-            coneColor = "purple"
-        elif purpleContour is None:
-            coneColor = "orange"
-        else:
-            if rc_utils.get_contour_area(orangeContour) > rc_utils.get_contour_area(purpleContour):
-                coneColor = "orange"
-            else:
-                coneColor = "purple"
-        rc.lidar.get_lidar_average_distance(scan, 360, 20)
-
-
-
-
+    #Calling States
+    if coneColor == "red":
+        cur_state = State.redCurve
+        print(cur_state)
+    elif coneColor == "blue":
+        cur_state = State.blueCurve
+        print(cur_state)
+    
+    if cur_state == State.redCurve:
+        redCurve()
+    elif cur_state == State.blueCurve:
+        blueCurve()
 
 
 ########################################################################################
@@ -110,5 +206,5 @@ def update():
 ########################################################################################
 
 if __name__ == "__main__":
-    rc.set_start_update(start, update, None)
+    rc.set_start_update(start, update)
     rc.go()
