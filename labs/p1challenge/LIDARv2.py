@@ -200,7 +200,7 @@ def update():
     #Displaying the scan
     rc.display.show_lidar(scan)
 
-    #update_color()
+    update_color()
     print(cur_state)
 
     print(coneFront)
