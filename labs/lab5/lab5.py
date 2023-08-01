@@ -32,19 +32,20 @@ import racecar_utils as rc_utils
 rc = racecar_core.create_racecar()
 
 # Add any global variables here
-MIN_CONTOUR_AREA = 30
+MIN_CONTOUR_AREA = 1500
 
 # A crop window for the floor directly in front of the car
 CROP_FLOOR = ((180,0), (rc.camera.get_height(), rc.camera.get_width()))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((160, 50, 170),(179,255,255))
-GREEN = ((40,50,163), (80,200,255))
-ORANGE = ((0,100,100),(25,255,255))
+RED = ((0,116, 113),(0,159,214))
+GREEN = ((40,120,120), (100,255,255))
+ORANGE = ((0,128,128),(25,255,255))
 YELLOW = ((20,30,30),(30,255,255))
-PURPLE = ((120,120, 122),(150,200,200))
-COLORS = (GREEN, RED, BLUE, YELLOW)
+PURPLE = ((120,230, 230),(150,255,255))
+COLORS = (GREEN, BLUE, YELLOW)
+LANECOLORS = (PURPLE, ORANGE)
 
 class State(IntEnum):
     LineFollow = 0
@@ -52,7 +53,8 @@ class State(IntEnum):
     LWallFollow = 2
     ConeSlalom = 3
     SafetyStop = 4
-cur_state: State = State.LineFollow
+    LaneFollow = 5
+cur_state: State = State.LaneFollow
 
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
@@ -85,35 +87,56 @@ def update_contour():
         if cur_state == State.LineFollow:
             image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
-        #Find all of contours of desired color and get biggest contour
-        for i in COLORS:         
-            currentCont = rc_utils.find_contours(image,i[0], i[1] )
+            #Find all of contours of desired color and get biggest contour
+            for i in COLORS:         
+                currentCont = rc_utils.find_contours(image,i[0], i[1] )
 
-            # if largestCurrColorCont is None:
-            #     continue
-            contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
+                # if largestCurrColorCont is None:
+                #     continue
+                contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
 
-            if contour is not None:
-                # Calculate contour information
-                contour_center = rc_utils.get_contour_center(contour)
-                contour_area = rc_utils.get_contour_area(contour)
-                print("area: ", contour_area)
+                if contour is not None:
+                    # Calculate contour information
+                    contour_center = rc_utils.get_contour_center(contour)
+                    contour_area = rc_utils.get_contour_area(contour)
 
-                # Draw contour onto the image
-                rc_utils.draw_contour(image, contour)
-                rc_utils.draw_circle(image, contour_center)
+                    # Draw contour onto the image
+                    rc_utils.draw_contour(image, contour)
+                    rc_utils.draw_circle(image, contour_center)
 
 
-                break
+                    break
 
-            else:
-                contour_center = None
-                contour_area = 0
+                else:
+                    contour_center = None
+                    contour_area = 0
 
-            # Display the image to the screen
-            rc.display.show_color_image(image)
+        if cur_state == State.LaneFollow:
+            rImage = rc_utils.crop(image, (180,320), (rc.camera.get_height(), rc.camera.get_width()))
+            lImage = rc_utils.crop(image, (180,0), (rc.camera.get_height(), 320))
+            
+            for i in LANECOLORS:         
+                rCont = rc_utils.find_contours(rImage, i[0], i[1])
+                lCont = rc_utils.find_contours(lImage, i[0], i[1])
+
+             
+                rLargCont= rc_utils.get_largest_contour(rCont, 300)
+                lLargCont= rc_utils.get_largest_contour(lCont, 300)
+                if rLargCont is not None and lLargCont is not None:
+                    rcontcenter = rc_utils.get_contour_center(rLargCont)
+                    lcontcenter = rc_utils.get_contour_center(lLargCont)
+               
+                
+                    contour_center = ((rcontcenter[0] + lcontcenter[0])/2, (rcontcenter[1] + lcontcenter[1] + 320)/2)
+                    print("center is at" + str(contour_center[1]))
+
+                    break
+                else:
+                    contour_center = None
             
 
+            
+            
 
 
 def start():
@@ -125,7 +148,6 @@ def start():
     global angle_time
     global lastError 
     global cur_state
-     
 
     # Initialize variables
     speed = 0
@@ -135,7 +157,7 @@ def start():
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
-    cur_state = State.LineFollow
+    cur_state = State.RWallFollow
     # Print start message
     print(">> Race3 - Wall, Line, Slalom, Stop")
 
@@ -151,12 +173,15 @@ def update():
     global angle_time
     global lastError
     global integralSum
+    global contour_area
+    global contour_center
     #     # Search for contours in the current color image
     update_contour()
 
     angle = 0
     error = 0
-
+    cur_state = State.LaneFollow
+    #GET RID OF THIS
     color_image = rc.camera.get_color_image()
     markers = rc_utils.get_ar_markers(color_image)
     if len(markers) > 0:
@@ -165,10 +190,9 @@ def update():
         id = 1000000 #ignore just a fake val
 
     scan = rc.lidar.get_samples_async()
-    setpoint = 65
-    speed = 0.122
-    kp = .3
-    print("id: ", id)
+    setpoint = 45
+    speed = 0.6
+    kp = .5
     
     if id == 4:
        # rc.drive.set_speed_angle(.3, .5)
@@ -186,20 +210,13 @@ def update():
         elif markers[0].detect_color(color_image, COLORS) == "Green":
             COLORS = (GREEN)
         cur_state = State.LineFollow
-    elif id == 3:
-        cur_state = State.SafetyStop
+    #elif id == 3:
+    #    cur_state = State.SafetyStop
     elif id == 1:
         cur_state = State.ConeSlalom
-#         print(markers[0].get_orientation())
-#         if markers[0].get_orientation() == "left":
-#             cur_state = State.LWallFollow
-#         elif markers[0].get_orientation() == "right":
-        #cur_state = State.RWallFollow 
 
-    print("state: ", cur_state)
-
-#     if rc_utils.get_lidar_closest_point(scan)[0] < 10 and rc_utils.get_lidar_closest_point(scan)[0] > 0:
-#         cur_state = State.SafetyStop
+    #if rc_utils.get_lidar_closest_point(scan)[0] < 40:
+    #    cur_state = State.SafetyStop
 
     if cur_state == State.LWallFollow:
         error = rc_utils.get_lidar_average_distance(scan, 315, 35) - setpoint
@@ -211,28 +228,27 @@ def update():
             # fix this
         if output > 0:
             print("neg")
-            angle = 2*rc_utils.remap_range(output, 0, ((900-setpoint)*kp), 0, 1) 
+            angle = -4*rc_utils.remap_range(output, 0, .1*((900-setpoint)*kp), 0, 1) 
         else:
             print("pos")
-            angle = 2*rc_utils.remap_range(output, (-setpoint*kp), 0, -.1, 0) 
-    elif cur_state == State.RWallFollow and scan is not None:
-        #         if rc_utils.get_lidar_average_distance(scan, 10, 10) < 30:
-#             angle = -.7
-#             speed = .13
-            # fix this
+            angle = -4*rc_utils.remap_range(output, .1*(-setpoint*kp), 0, -.1, 0) 
+    elif cur_state == State.RWallFollow:
         error = rc_utils.get_lidar_average_distance(scan, 45, 35) - setpoint
         output = error*kp
-        if output > 0:
-            angle = 2*rc_utils.remap_range(output, 0, ((900-setpoint)*kp), 0, 1) 
+        if rc_utils.get_lidar_average_distance(scan, 10, 10) < 60:
+            angle = -1
+            speed = .8
+            # fix this
+        elif output > 0:
+            angle = 4*rc_utils.remap_range(output, 0, .1*((900-setpoint)*kp), 0, 1) 
         else:
-            angle = 2*rc_utils.remap_range(output, (-setpoint*kp), 0, -.1, 0) 
-    
+            angle = 4*rc_utils.remap_range(output, .1*(-setpoint*kp), 0, -.1, 0) 
     elif cur_state == State.LineFollow:
-         if contour_center is not None:
+        if contour_center is not None:
             if lastError == None:
                 lastError = 0   
             kp =.17
-            ki = 0
+            ki = .1
             kd = .13
             dt = rc.get_delta_time()
             width = rc.camera.get_width()
@@ -240,38 +256,31 @@ def update():
             integralSum += (lastError + error) / 2 * dt
             angle = error*kp + integralSum*ki + ((error-lastError)/dt)*kd
             angle = rc_utils.clamp(angle, -1, 1)
-            lastError = error
+    elif cur_state == State.LaneFollow:
+        if contour_center is not None:
+            print(contour_center[1])
+            if lastError == None:
+                lastError = 0   
+            kp =.17
+            ki = .1
+            kd = .13
+            dt = rc.get_delta_time()
+            width = rc.camera.get_width()
+
+            error = contour_center[1] / width * 2 - 1 # mapping it
+            integralSum += (lastError + error) / 2 * dt
+            angle = error*kp + integralSum*ki + ((error-lastError)/dt)*kd
+            angle = rc_utils.clamp(angle, -1, 1)
     elif cur_state == State.SafetyStop:
         print("stopped")
-        rc.drive.set_speed_angle(-.5, 0)
         rc.drive.stop()
-    elif cur_state == State.ConeSlalom:
-        if coneColor == "orange":
-            if contour_center is None:
-                rc.drive.set_speed_angle(0.13, -0.11)
-                print("autoOrangturn")
-            else:
-                TURN_ANGLE = ((contour_center[1] - 70) / 320)
-                TURN_ANGLE = rc_utils.clamp(TURN_ANGLE, -1, 1)
-                if -0.08 < TURN_ANGLE < 0.08:
-                    TURN_ANGLE = 0
-                rc.drive.set_speed_angle(0.18, TURN_ANGLE)
-        elif coneColor == "purple":
-            if contour_center is None:
-                rc.drive.set_speed_angle(0.13, 0.11)
-                print("autoPurpturn")
-            else:
-                TURN_ANGLE = ((contour_center[1] - 570) / 320)
-                TURN_ANGLE = rc_utils.clamp(TURN_ANGLE, -1, 1)
-                if -0.08 < TURN_ANGLE < 0.08:
-                    TURN_ANGLE = 0
-                rc.drive.set_speed_angle(0.18, TURN_ANGLE)
-            
-        
+
+    angle = rc_utils.clamp(angle,-1, 1)
 
     rc.drive.set_speed_angle(speed, angle)
     print("ang: ", angle)
     print("error: ", error)
+    print("state: ", cur_state)
     # TODO: Follow the wall to the right of the car without hitting anything.
 
 
@@ -282,5 +291,3 @@ def update():
 if __name__ == "__main__":
     rc.set_start_update(start, update, None)
     rc.go()
-
-   
