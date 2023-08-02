@@ -157,6 +157,8 @@ def start():
     global lastError 
     global cur_state
     global integralSum
+    global time
+    time = 0
 
     # Initialize variables
     speed = 0
@@ -167,7 +169,7 @@ def start():
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
-    cur_state = State.FastWallFollow
+    cur_state = State.Ramp
     # Print start message
     print(">> GRAND PRIX")
 
@@ -193,6 +195,7 @@ def update():
     global integralSum
     global contour_area
     global contour_center
+    global time
     # Search for contours in the current color image
     update_contour()
 
@@ -207,7 +210,7 @@ def update():
 
     scan = rc.lidar.get_samples_async()
     setpoint = 45
-    speed = .15
+    speed = .12
     kp = .2
     
     if id == 1:
@@ -228,12 +231,19 @@ def update():
         cur_state = State.WallFollow
         # cur_state = State.WallFollowBrick # code brick code if need separate
 
-    print("closestp: ", rc_utils.get_lidar_closest_point(scan)[0])
+    print("closestp: ", rc_utils.get_lidar_closest_point(scan, (270, 90))[0])
     if rc_utils.get_lidar_closest_point(scan)[0] < 20 and cur_state != State.Ramp and cur_state != State.LaneFollow:
         cur_state = State.SafetyStop
 
     if cur_state == State.Ramp:
-        speed = .4
+        if rc_utils.get_lidar_closest_point(scan, (270, 90))[0] < 100:
+            time += rc.get_delta_time()
+        if time < .7:
+            speed = .22
+        else:
+            speed = .12
+            cur_state = State.WallFollow
+            time = 0
         angle = 0
     elif cur_state == State.LineFollow:
         if contour_center is not None:
