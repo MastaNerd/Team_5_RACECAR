@@ -139,25 +139,25 @@ def update_contour():
 
 def purpleCurve(contour_center, contour_area):
     if contour_center is None:
-        rc.drive.set_speed_angle(0.128, 0.115)
+        rc.drive.set_speed_angle(0.135, 0.12)
         print("autoPurpturn")
     else:
         TURN_ANGLE = ((contour_center[1] - 570) / 320) - 0.08
         TURN_ANGLE = rc_utils.clamp(TURN_ANGLE, -1, 1)
         if -0.08 < TURN_ANGLE < 0.08:
             TURN_ANGLE = 0
-        rc.drive.set_speed_angle(0.15, TURN_ANGLE)
+        rc.drive.set_speed_angle(0.17, TURN_ANGLE)
 
 def orangeCurve(contour_center, contour_area):
     if contour_center is None:
-        rc.drive.set_speed_angle(0.128, -0.115)
+        rc.drive.set_speed_angle(0.135, -0.12)
         print("autoOrangturn")
     else:
         TURN_ANGLE = ((contour_center[1] - 70) / 320) + 0.08
         TURN_ANGLE = rc_utils.clamp(TURN_ANGLE, -1, 1)
         if -0.08 < TURN_ANGLE < 0.08:
             TURN_ANGLE = 0
-        rc.drive.set_speed_angle(0.14, TURN_ANGLE)
+        rc.drive.set_speed_angle(0.17, TURN_ANGLE)
 
 def update():
     
@@ -179,6 +179,8 @@ def update():
         orangeCurve(contour_center, contour_area)
     elif cur_state == State.purpleCurve:
         purpleCurve(contour_center, contour_area)
+    elif cur_state == State.Search:
+        rc.drive.set_speed_angle(0.16, 0)
     
     
 def update_slow():
