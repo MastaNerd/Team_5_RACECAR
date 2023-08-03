@@ -102,11 +102,13 @@ def update_contour():
                 # if largestCurrColorCont is None:
                 #     continue
                 contour= rc_utils.get_largest_contour(currentCont, MIN_CONTOUR_AREA)
+                
 
                 if contour is not None:
                     # Calculate contour information
                     contour_center = rc_utils.get_contour_center(contour)
                     contour_area = rc_utils.get_contour_area(contour)
+                    print("area: ", rc_utils.get_contour_area(contour))
 
                     # Draw contour onto the image
                     rc_utils.draw_contour(image, contour)
@@ -177,7 +179,7 @@ def start():
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
-    cur_state = State.LaneFollow
+    cur_state = State.Ramp
     # Print start message
     print(">> GRAND PRIX")
 
@@ -220,13 +222,15 @@ def update():
     speed = .13
     kp = .2
     
+    print(id)
+    
     if id == 1:
         cur_state = State.Ramp
     elif id == 2:
         cur_state = State.LineFollow     
-    elif id == 3:
-        cur_state = State.WallFollow
     elif id == 4:
+        cur_state = State.WallFollow
+    elif id == 3:
         cur_state = State.FastWallFollow
     elif id == 5:
         cur_state = State.ConeSlalom
@@ -245,11 +249,12 @@ def update():
     if cur_state == State.Ramp:
         if rc_utils.get_lidar_closest_point(scan, (270, 90))[0] < 100:
             time += rc.get_delta_time()
-        if time < .7:
+        if time < .6:
             speed = .22
         else:
-            speed = .12
-            cur_state = State.WallFollow
+            speed = 0
+            print("stop")
+            cur_state = State.SafetyStop
             time = 0
         angle = 0
     elif cur_state == State.LineFollow:
@@ -271,7 +276,7 @@ def update():
             angle = error*kp + integralSum*ki + ((error-lastError)/dt)*kd
             angle = rc_utils.clamp(angle, -1, 1)
             lastError = error
-    elif cur_state == State.LWallFollow or cur_state == State.WallFollow:
+    elif cur_state == State.LWallFollow or cur_state == State.FastWallFollow:
         error = rc_utils.get_lidar_average_distance(scan, 315, 35) - setpoint
         output = error*kp
         if rc_utils.get_lidar_average_distance(scan, 10, 10) < 60:
@@ -281,22 +286,24 @@ def update():
             # fix this
         if output > 0:
             print("neg")
-            angle = -4*rc_utils.remap_range(output, 0, .1*((900-setpoint)*kp), 0, 1) 
+            angle = -1*rc_utils.remap_range(output, 0, 1*((900-setpoint)*kp), 0, 1) 
         else:
             print("pos")
-            angle = -4*rc_utils.remap_range(output, .1*(-setpoint*kp), 0, -.1, 0) 
-    elif cur_state == State.RWallFollow or cur_state == State.FastWallFollow:
+            angle = -1*rc_utils.remap_range(output, 1*(-setpoint*kp), 0, -.1, 0) 
+    elif cur_state == State.RWallFollow or cur_state == State.WallFollow:
         error = rc_utils.get_lidar_average_distance(scan, 45, 35) - setpoint
         output = error*kp
         if rc_utils.get_lidar_average_distance(scan, 10, 10) < 60:
             angle = -1
-            speed = .8
             # fix this
         elif output > 0:
-            angle = 4*rc_utils.remap_range(output, 0, .1*((900-setpoint)*kp), 0, 1) 
+            angle = rc_utils.remap_range(output, 0, 1*((900-setpoint)*kp), 0, 1) 
         else:
-            angle = 4*rc_utils.remap_range(output, .1*(-setpoint*kp), 0, -.1, 0) 
-        speed = .2
+            angle = rc_utils.remap_range(output, 1*(-setpoint*kp), 0, -.1, 0) 
+        if abs(angle)>.7:
+            speed = .15
+        else:
+            speed = .14
     elif cur_state == State.LaneFollow:
         if contour_center is not None:
             kp =.17
